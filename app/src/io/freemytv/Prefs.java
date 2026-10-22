@@ -116,6 +116,10 @@ final class Prefs {
     static boolean coin(int i) { return sp().getBoolean("coin" + i, true); }
     static void setCoin(int i, boolean on) { put("coin" + i, on); }
 
+    // MARK: - Home screen look: the title and the solid background behind it
+    static int backgroundColor() { return sp().getInt("background_color", 0xFF111113); }
+    static void setBackgroundColor(int color) { sp().edit().putInt("background_color", color).apply(); version++; }
+
     // MARK: - Shelf
 
     /** Packages on the home shelf, in order; null until the user edits it (then the built-in list applies). */

@@ -9,6 +9,13 @@ final class German {
             case "Live TV": return "Live-TV";
             case "All Apps": return "Alle Apps";
             case "Settings": return "Einstellungen";
+            case "Background": return "Hintergrund";
+            case "The home screen's background color": return "Hintergrundfarbe des Startbildschirms";
+            case "Joke of the minute": return "Witz der Minute";
+            case "A new joke every minute": return "Jeden Minute ein neuer Witz";
+            case "Colors": return "Farben";
+            case "Title color": return "Titelfarbe";
+            case "Background color": return "Hintergrundfarbe";
             case "Home Settings": return "Start-Einstellungen";
             case "TV Settings": return "TV-Einstellungen";
             case "HDMI Inputs": return "HDMI-Eingänge";

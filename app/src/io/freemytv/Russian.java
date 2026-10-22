@@ -16,6 +16,13 @@ final class Russian {
             case "Live TV": return "Телеканалы";
             case "All Apps": return "Приложения";
             case "Settings": return "Настройки";
+            case "Background": return "Фон";
+            case "The home screen's background color": return "Цвет фона главного экрана";
+            case "Joke of the minute": return "Шутка минуты";
+            case "A new joke every minute": return "Новая шутка каждую минуту";
+            case "Colors": return "Цвета";
+            case "Title color": return "Цвет заголовка";
+            case "Background color": return "Цвет фона";
             case "Home Settings": return "Главный экран";
             case "TV Settings": return "Настройки ТВ";
             case "HDMI Inputs": return "Входы HDMI";

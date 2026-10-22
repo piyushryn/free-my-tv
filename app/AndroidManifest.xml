@@ -55,6 +55,16 @@
         android:allowBackup="false"
         android:usesCleartextTraffic="false">
 
+        <activity
+            android:name=".ColorsActivity"
+            android:process=":home"
+            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:exported="false"
+            android:label="Colors"
+            android:excludeFromRecents="true"
+            android:screenOrientation="landscape"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection" />
+
         <!-- The app's icon opens the settings (switch between Free My TV and the original home screen). -->
         <activity
             android:name=".SettingsActivity"

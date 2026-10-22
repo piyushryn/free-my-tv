@@ -33,7 +33,7 @@ final class Ui {
     static volatile String language = language();
     static volatile boolean en = "en".equals(language), es = "es".equals(language), de = "de".equals(language),
             ru = "ru".equals(language);
-    static Typeface thin, light, displayMedium, displaySemibold, regular, medium, semibold;
+    static Typeface thin, light, displayMedium, displaySemibold, regular, medium, semibold, brand;
     private static boolean loaded;
     private static final Rect BOUNDS = new Rect();
     private static final RectF OVAL = new RectF();
@@ -49,6 +49,19 @@ final class Ui {
         regular = font(a, 14, 400);
         medium = font(a, 14, 500);
         semibold = font(a, 14, 600);
+        brand = brandFont(a);
+    }
+
+    /** Unbounded ExtraLight for the home screen's title (the system font if the file is missing). */
+    private static Typeface brandFont(AssetManager a) {
+        if (has(a, BRAND_FONT)) {
+            try {
+                Typeface t = new Typeface.Builder(a, BRAND_FONT).setFontVariationSettings("'wght' 200").build();
+                if (t != null) return t;
+            } catch (RuntimeException ignored) {
+            }
+        }
+        return Typeface.DEFAULT;
     }
 
     /** Inter at an optical size (14 = text, 32 = display) and weight; the system font if the file is missing. */
@@ -64,7 +77,7 @@ final class Ui {
         return Typeface.create(Typeface.DEFAULT, weight, false);
     }
 
-    private static final String FONT = "fonts/InterVariable.ttf";
+    private static final String FONT = "fonts/InterVariable.ttf", BRAND_FONT = "fonts/Unbounded.ttf";
 
     /** "pt", "es", "de", "ru" or "en": the one picked (TV settings or config.properties), or with "auto" the TV's own, else English. */
     private static String language() {
