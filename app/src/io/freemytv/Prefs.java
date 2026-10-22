@@ -118,6 +118,15 @@ final class Prefs {
 
     // MARK: - Home screen look: the title and the solid background behind it
     static int backgroundColor() { return sp().getInt("background_color", 0xFF111113); }
+    /** Dark enough for light text (perceived brightness under 42%); lighter backgrounds get dark text. */
+    static boolean isDark(int c) {
+        return (0.299f * ((c >> 16) & 255) + 0.587f * ((c >> 8) & 255) + 0.114f * (c & 255)) / 255f < 0.42f;
+    }
+    /** The settings keep a dark page whatever the home screen's background is. */
+    static int settingsBackground() {
+        int c = backgroundColor();
+        return isDark(c) ? c : 0xFF111113;
+    }
     static void setBackgroundColor(int color) { sp().edit().putInt("background_color", color).apply(); version++; }
 
     // MARK: - Shelf

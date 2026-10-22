@@ -589,12 +589,14 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         lQuote = Ui.numbers(Ui.regular, 21 * k, L_FAINT);
         lTip = Ui.text(Ui.semibold, 25 * k, L_INK);
         lTip.setTextAlign(Paint.Align.CENTER);
-        lDate = Ui.text(Ui.semibold, 34 * k, L_DIM);
-        lBrand = Ui.text(Ui.brand, 40 * k, L_INK);
+        lDate = Ui.text(Ui.regular, 30 * k, L_DIM);
+        lBrand = Ui.text(Ui.brand, 26 * k, L_INK);
+        lBrand.setLetterSpacing(0.18f);
         lJokeFoot = Ui.text(Ui.regular, 22 * k, L_DIM);
-        lJoke = Ui.text(Ui.regular, 34 * k, L_INK);
-        lJokePunch = Ui.text(Ui.semibold, 38 * k, L_INK);
-        lJokeLabel = Ui.text(Ui.semibold, 24 * k, L_DIM);
+        lJoke = Ui.text(Ui.light, 36 * k, L_INK);
+        lJokePunch = Ui.text(Ui.regular, 36 * k, L_INK);
+        lJokeLabel = Ui.text(Ui.medium, 20 * k, L_DIM);
+        lJokeLabel.setLetterSpacing(0.16f);
         glassFill = new Paint(Paint.ANTI_ALIAS_FLAG);
         glassFill.setColor(0x1AFFFFFF);
         glassEdge = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -602,7 +604,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         glassEdge.setStrokeWidth(2 * k);
         glassEdge.setColor(0x33FFFFFF);
         jokeLayoutText = null;
-        lClock = Ui.numbers(Ui.light, 200 * k, L_INK);
+        lClock = Ui.numbers(Ui.thin, 220 * k, L_INK);
         lClock.setLetterSpacing(-0.01f);
         lWeather = Ui.text(Ui.medium, 34 * k, L_DIM);
         lClockQuote = Ui.numbers(Ui.medium, 28 * k, L_DIM);
@@ -646,7 +648,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         border.setStyle(Paint.Style.STROKE);
         border.setStrokeWidth(2 * k);
         rim.setStyle(Paint.Style.STROKE);
-        rim.setStrokeWidth(2.5f * k);
+        rim.setStrokeWidth(2f * k);
     }
 
     // MARK: - Frames: 60 per second while something moves; nothing is redrawn when still
@@ -891,9 +893,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     /** Day or night right now (from the sun at your location); `animate`: with the transition. */
     private void checkNight(boolean animate) {
-        boolean want = true;     // the background is always dark, so the look is always the night one
+        boolean want = Prefs.isDark(Prefs.backgroundColor());   // light text on a dark background, dark text on a light one
         if (want == nightTarget) return;
         nightTarget = want;
+        jokeLayoutText = null;
         if (animate && running) {
             nightFrom = night;
             nightAt = SystemClock.uptimeMillis();
@@ -907,6 +910,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     /** Advances the day ⇄ night transition; true while it runs. */
     private boolean tickNight(long up) {
         if (nightAt == 0) return false;
+        jokeLayoutText = null;      // the joke's text colors follow the tone
         float t = Ui.clamp((up - nightAt) / NIGHT_MS), to = nightTarget ? 1 : 0;
         night = nightFrom + (to - nightFrom) * t * t * (3 - 2 * t);
         if (t >= 1) {
@@ -1148,13 +1152,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private void drawPlatter(Canvas c) {
         if (shelf.isEmpty()) return;
         float radius = (TILE_RADIUS + SHELF_PAD) * k;
-        tmp.set(platterRect);
-        tmp.offset(0, 18 * k);
-        shadow.setColor(tone(0x1F000000, 0x52000000));
-        shadows.draw(c, tmp, radius, SHADOW_BLUR * k, shadow);
-        // White glass by day; smoked glass at night.
-        scene.liquid(c, platterRect, radius, tone(0xFFFFFFFF, SMOKE), tone(0.42f, 0.12f), tone(0.03f, 0.08f),
-                tone(30, 34) * k, tone(22, 28) * k, tone(0.65f, 0.95f), 1);
+        // Flat: a faint lighter plate, no shadow and no glass.
+        fill.setShader(null);
+        fill.setColor(tone(0x0F000000, 0x0DFFFFFF));
+        c.drawRoundRect(platterRect, radius, radius, fill);
     }
 
     /** The quotes row's text and sizes, for one set of coins, prices and text size. */
@@ -1847,7 +1848,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             rim.setColor(Ui.alpha(0xFFFFFFFF, 0.4f * fc));
             rim.setStrokeWidth(1.5f * k);
             c.drawRoundRect(cell, r, r, rim);
-            rim.setStrokeWidth(2.5f * k);
+            rim.setStrokeWidth(2f * k);
         }
     }
 
@@ -2714,11 +2715,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         String joke = data.joke;
         if (joke.isEmpty()) return;
         if (!joke.equals(jokeLayoutText)) layoutJoke(joke);
-        float pad = L_BOX_PAD * k, r = L_BOX_R * k;
-        float left = CONTENT_R * k - L_BOX_W * k, top = L_BOX_TOP * k;
+        float pad = 0, r = 0;
+        float left = CONTENT_R * k - (L_BOX_W - 2 * L_BOX_PAD) * k, top = (L_BRAND_BASE - 20) * k;
         jokeBox.set(left, top, CONTENT_R * k, top + jokeBoxH);
-        c.drawRoundRect(jokeBox, r, r, glassFill);
-        c.drawRoundRect(jokeBox, r, r, glassEdge);
         float labelH = lJokeLabel.descent() - lJokeLabel.ascent();
         c.drawText(jokeLabel, left + pad, top + pad - lJokeLabel.ascent(), lJokeLabel);
         // the setup in white, then the punchline in the accent color
@@ -2733,7 +2732,6 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             jokePunch.draw(c);
             c.restore();
         }
-        c.drawText(jokeFoot, left + pad, top + jokeBoxH - pad - lJokeFoot.descent(), lJokeFoot);
     }
 
     /** Lays the joke out once per joke: the setup and punchline, and the box's height. */
@@ -2743,25 +2741,20 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         String setup = split < 0 ? joke : joke.substring(0, split);
         String punch = split < 0 ? "" : joke.substring(split + 1);
         jokeHasPunch = !punch.isEmpty();
-        jokeLabel = Ui.tr("Joke of the minute", "Joke of the minute", "Chiste del minuto");
+        jokeLabel = Ui.tr("Joke of the minute", "Joke of the minute", "Chiste del minuto").toUpperCase(Ui.locale());
         jokeFoot = Ui.tr("A new joke every minute", "A new joke every minute", "Un chiste nuevo cada minuto");
-        lJokePunch.setColor(ACCENT);
-        int w = Math.round((L_BOX_W - 2 * L_BOX_PAD) * k);
+        lJokePunch.setColor(tone(0xFF8A5A00, ACCENT));
+        int w = Math.round((L_BOX_W - 2 * L_BOX_PAD) * k);  // text column width
         jokeSetup = new StaticLayout(setup, new TextPaint(lJoke), w, Layout.Alignment.ALIGN_NORMAL, 1.2f, 0, false);
         jokePunch = new StaticLayout(punch, new TextPaint(lJokePunch), w, Layout.Alignment.ALIGN_NORMAL, 1.2f, 0, false);
         float labelH = lJokeLabel.descent() - lJokeLabel.ascent();
         float footH = lJokeFoot.descent() - lJokeFoot.ascent();
-        float content = labelH + 26 * k + jokeSetup.getHeight() + (jokeHasPunch ? 22 * k + jokePunch.getHeight() : 0)
-                + 28 * k + footH;
-        jokeBoxH = Math.max(L_BOX_H * k, 2 * L_BOX_PAD * k + content);
+        jokeBoxH = labelH + 26 * k + jokeSetup.getHeight() + (jokeHasPunch ? 22 * k + jokePunch.getHeight() : 0);
     }
 
     private void drawClock(Canvas c) {
         float x = MARGIN * k, pad = L_BOX_PAD * k, r = L_BOX_R * k;
-        clockBox.set(x - pad, L_BOX_TOP * k, x - pad + L_BOX_W * k, (L_BOX_TOP + L_BOX_H) * k);
-        c.drawRoundRect(clockBox, r, r, glassFill);
-        c.drawRoundRect(clockBox, r, r, glassEdge);
-        // the name, above the date
+        // no box: the clock sits straight on the background; the name, small and spaced, above the date
         c.drawText(BRAND, x - Ui.leftBearing(lBrand, BRAND), L_BRAND_BASE * k, lBrand);
         c.drawText(dateText, x - Ui.leftBearing(lDate, dateText), L_DATE_BASE * k, lDate);
         c.drawText(clockText, x - Ui.leftBearing(lClock, clockText), L_CLOCK_BASE * k, lClock);
@@ -2801,8 +2794,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         c.translate(cx, cy);
         c.scale(s, s);
         tmp.set(-bw / 2, -bh / 2, bw / 2, bh / 2);
-        tmp.offset(0, (10 + 14 * f) * k);
-        shadowDeep.setColor(Ui.alpha(0xFF000000, tone(0.14f, 0.32f) + tone(0.2f, 0.28f) * f));
+        tmp.offset(0, (6 + 10 * f) * k);
+        shadowDeep.setColor(Ui.alpha(0xFF000000, 0.12f + 0.16f * f));
         shadows.draw(c, tmp, r0, DEEP_BLUR * k, shadowDeep);
         c.restore();
         Backdrop b = p == null ? null : recs.backdrop(p);
@@ -2830,15 +2823,11 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             c.translate(cx, cy);
             c.scale(s, s);
             tmp.set(-bw / 2, -bh / 2, bw / 2, bh / 2);
-            sheen.setShader(lightSheens[i]);
-            sheen.setAlpha(alpha);
-            c.drawRoundRect(tmp, r0, r0, sheen);
-            sheen.setAlpha(255);
             rim.setShader(lightRims[i]);
             rim.setAlpha(alpha);
-            rim.setStrokeWidth(2.5f * k / s);
+            rim.setStrokeWidth(2f * k / s);
             c.drawRoundRect(tmp, r0, r0, rim);
-            rim.setStrokeWidth(2.5f * k);
+            rim.setStrokeWidth(2f * k);
             rim.setAlpha(255);
             c.restore();
         }
@@ -2861,19 +2850,16 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             RectF r = topRects[3 + i];
             float f = Ui.clamp(topFocus[3 + i].value), s = 1 + 0.1f * f, rad = r.width() / 2 * s;
             cell.set(r.centerX() - rad, r.centerY() - rad, r.centerX() + rad, r.centerY() + rad);
-            tmp.set(cell);
-            tmp.offset(0, (6 + 8 * f) * k);
-            shadow.setColor(Ui.alpha(0xFF000000, tone(0.1f, 0.3f) + tone(0.14f, 0.2f) * f));
-            shadows.draw(c, tmp, rad, SHADOW_BLUR * k, shadow);
-            scene.liquid(c, cell, rad, tone(0xFFFFFFFF, SMOKE), tone(0.55f, 0.5f), tone(0.02f, 0.01f), 12 * k, 8 * k,
-                    tone(0.6f, 0.45f), 1 - f);
+            fill.setShader(null);
+            fill.setColor(tone(0x14000000, 0x14FFFFFF));
+            c.drawCircle(cell.centerX(), cell.centerY(), rad, fill);
             if (f > 0.01f) {
                 fill.setShader(null);
-                fill.setColor(Ui.alpha(0xFFFFFFFF, f));
+                fill.setColor(Ui.alpha(tone(L_INK, 0xFFFFFFFF), f));
                 c.drawCircle(cell.centerX(), cell.centerY(), rad, fill);
             }
-            Symbols.draw(getContext(), c, lightButtons.get(i).symbol, cell.centerX(), cell.centerY(), 27 * k * s,
-                    blend(tone(L_INK, 0xEBFFFFFF), L_INK, f));
+            Symbols.draw(getContext(), c, lightButtons.get(i).symbol, cell.centerX(), cell.centerY(), 25 * k * s,
+                    blend(tone(L_INK, 0xEBFFFFFF), tone(0xFFFFFFFF, L_INK), f));
             if (f > 0.01f) {
                 String label = lightButtons.get(i).label;
                 float half = lTip.measureText(label) / 2;

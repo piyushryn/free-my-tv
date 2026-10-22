@@ -117,7 +117,7 @@ public class SettingsActivity extends Activity {
         private static final float LIST_ROW_H = 68, LIST_ROW_GAP = 6;
         private static final int PICK_VISIBLE = 9;
         private static final float LIST_X = 1000, LIST_R = 1824, LIST_TOP = 186, ROW_H = 74, ROW_GAP = 8, CHOICE_H = 104;
-        private static final int AMBER = 0xFFFFC266, INK = 0xFF1C1C1E;
+        private static final int AMBER = 0xFFFFC266, INK = 0xF2FFFFFF;
 
         private final SettingsActivity activity;
         private final Scene scene = new Scene();
@@ -289,18 +289,19 @@ public class SettingsActivity extends Activity {
             h = height;
             k = w / 1920f;
             scene.setSize(w, h);
-            title = Ui.text(Ui.displaySemibold, 50 * k, 0xFFFFFFFF);
+            title = Ui.text(Ui.brand, 40 * k, 0xFFFFFFFF);
+            title.setLetterSpacing(0.06f);
             title.setTextAlign(Paint.Align.CENTER);
-            subtitle = Ui.text(Ui.regular, 26 * k, 0x99FFFFFF);
+            subtitle = Ui.text(Ui.regular, 24 * k, 0x80FFFFFF);
             subtitle.setTextAlign(Paint.Align.CENTER);
             version = Ui.text(Ui.regular, 22 * k, 0x66FFFFFF);
             version.setTextAlign(Paint.Align.CENTER);
-            rowLabel = Ui.text(Ui.medium, 30 * k, 0xF2FFFFFF);
+            rowLabel = Ui.text(Ui.regular, 30 * k, 0xF2FFFFFF);
             rowValue = Ui.text(Ui.regular, 28 * k, 0x8CFFFFFF);
             rowValue.setTextAlign(Paint.Align.RIGHT);
             rowSub = Ui.text(Ui.regular, 23 * k, 0x8CFFFFFF);
-            header = Ui.text(Ui.semibold, 21 * k, 0x73FFFFFF);
-            header.setLetterSpacing(0.06f);
+            header = Ui.text(Ui.medium, 19 * k, 0x66FFFFFF);
+            header.setLetterSpacing(0.16f);
             cellLabel = Ui.text(Ui.regular, 25 * k, 0xD9FFFFFF);
             cellValue = Ui.numbers(Ui.regular, 25 * k, 0xD9FFFFFF);
             cellValue.setTextAlign(Paint.Align.RIGHT);
@@ -356,14 +357,14 @@ public class SettingsActivity extends Activity {
                 lastSky = up;
                 scene.advance(seconds);
             }
-            scene.drawBackground(c);
+            c.drawColor(Prefs.settingsBackground());
 
-            // On the left: big symbol, title, description.
+            // On the left: a small symbol, the title, a line of description.
             float cx = 500 * k;
-            Symbols.draw(getContext(), c, "sparkles", cx, 400 * k, 150 * k, 0xEBFFFFFF);
-            c.drawText("Free My TV", cx, 612 * k, title);
-            c.drawText(Ui.tr("Início e tela de descanso da TV", "Your TV's home screen and screensaver"), cx, 660 * k, subtitle);
-            c.drawText(versionName(getContext()), cx, 704 * k, version);
+            Symbols.draw(getContext(), c, "sparkles", cx, 420 * k, 72 * k, 0x99FFFFFF);
+            c.drawText("Free My TV", cx, 580 * k, title);
+            c.drawText(Ui.tr("Início e tela de descanso da TV", "Your TV's home screen and screensaver"), cx, 632 * k, subtitle);
+            c.drawText(versionName(getContext()), cx, 676 * k, version);
 
             if (screen == MAIN) drawMain(c, seconds); else if (screen == HOME_CHOICE) drawChoice(c); else if (screen == PICKER) drawPicker(c); else if (screen == SHELF_EDIT) drawShelfEditor(c); else drawList(c);
         }
@@ -387,18 +388,18 @@ public class SettingsActivity extends Activity {
                 float right = rowRect.right - 30 * k;
                 if (i >= 2) {
                     float cw = Symbols.width(getContext(), "chevron_right", 22 * k);
-                    Symbols.draw(getContext(), c, "chevron_right", right - cw / 2, rowRect.centerY(), 22 * k, blend(0x66FFFFFF, 0x991C1C1E, f));
+                    Symbols.draw(getContext(), c, "chevron_right", right - cw / 2, rowRect.centerY(), 22 * k, blend(0x66FFFFFF, 0xB3FFFFFF, f));
                 } else if (i == 0 && working) {
                     // Switching: the current step in place of the value, with the spinning arc.
                     String text = busyText.isEmpty() ? Ui.tr("Começando…", "Starting…") : busyText;
-                    rowValue.setColor(blend(0xB3FFFFFF, 0xB31C1C1E, f));
+                    rowValue.setColor(blend(0xB3FFFFFF, 0xB3FFFFFF, f));
                     String shown = TextUtils.ellipsize(text, new TextPaint(rowValue), 470 * k, TextUtils.TruncateAt.END).toString();
                     c.drawText(shown, right, base, rowValue);
                     float sx = right - rowValue.measureText(shown) - 26 * k;
                     spinner.setColor(blend(0xFFFFFFFF, INK, f));
                     Ui.spinner(c, sx, rowRect.centerY(), 12 * k, seconds * 1.3f, spinner);
                 } else {
-                    rowValue.setColor(blend(0x8CFFFFFF, 0x8C1C1C1E, f));
+                    rowValue.setColor(blend(0x8CFFFFFF, 0xB3FFFFFF, f));
                     c.drawText(values[i], right, base, rowValue);
                 }
             }
@@ -452,17 +453,11 @@ public class SettingsActivity extends Activity {
         private float drawRowBackground(Canvas c, int i) {
             float f = Ui.clamp(pop[i].value);
             if (f > 0.01f) {
-                float s = 1 + 0.02f * f;
-                float cx = rowRect.centerX(), cy = rowRect.centerY();
-                tmp.set(cx - rowRect.width() * s / 2, cy - rowRect.height() * s / 2, cx + rowRect.width() * s / 2, cy + rowRect.height() * s / 2);
-                float r = 18 * k * s;
-                tmp.offset(0, 10 * k * f);
-                shadow.setColor(Ui.alpha(0xFF000000, 0.4f * f));
-                c.drawRoundRect(tmp, r, r, shadow);
-                tmp.offset(0, -10 * k * f);
-                white.setAlpha(Math.round(255 * f));
-                c.drawRoundRect(tmp, r, r, white);
-                rowRect.set(tmp);
+                // Flat: a soft light plate, no shadow and no growing.
+                float r = 14 * k;
+                white.setColor(0x1FFFFFFF);
+                white.setAlpha(Math.round(0x1F * f));
+                c.drawRoundRect(rowRect, r, r, white);
             }
             return f;
         }
@@ -505,7 +500,7 @@ public class SettingsActivity extends Activity {
 
         /** Home screen choice: Free My TV or the original, with a check on the one in use. */
         private void drawChoice(Canvas c) {
-            Paint heading = Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF);
+            Paint heading = Ui.text(Ui.light, 38 * k, 0xFFFFFFFF);
             c.drawText(Ui.tr("Início", "Home Screen"), LIST_X * k + 30 * k, (LIST_TOP - 24) * k, heading);
             String[][] options = {{"Free My TV", Ui.tr("Sem anúncios, com a tela de descanso nova", "No ads, with the new screensaver")},
                     {Ui.tr("Original", "Original"), Ui.tr("O Início de fábrica da TV", "The TV's factory home screen")}};
@@ -515,7 +510,7 @@ public class SettingsActivity extends Activity {
                 rowRect.set(LIST_X * k, y, LIST_R * k, y + CHOICE_H * k);
                 float f = drawRowBackground(c, i);
                 rowLabel.setColor(blend(0xF2FFFFFF, INK, f));
-                rowSub.setColor(blend(0x8CFFFFFF, 0x991C1C1E, f));
+                rowSub.setColor(blend(0x8CFFFFFF, 0xB3FFFFFF, f));
                 c.drawText(options[i][0], rowRect.left + 30 * k, rowRect.top + 44 * k, rowLabel);
                 c.drawText(options[i][1], rowRect.left + 30 * k, rowRect.top + 80 * k, rowSub);
                 if (i == current) {
@@ -860,7 +855,7 @@ public class SettingsActivity extends Activity {
         }
 
         private void drawShelfEditor(Canvas c) {
-            Paint heading = Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF);
+            Paint heading = Ui.text(Ui.light, 38 * k, 0xFFFFFFFF);
             c.drawText(Ui.tr("Prateleira", "Shelf"), LIST_X * k + 30 * k, (LIST_TOP - 24) * k, heading);
             int rows = rowCount();
             for (int i = 0; i < rows; i++) {
@@ -870,7 +865,7 @@ public class SettingsActivity extends Activity {
                 rowRect.set(LIST_X * k, y, LIST_R * k, y + LIST_ROW_H * k);
                 float f = drawRowBackground(c, i);
                 rowLabel.setColor(blend(place >= 0 ? 0xF2FFFFFF : 0x80FFFFFF, place >= 0 ? INK : 0x801C1C1E, f));
-                rowValue.setColor(blend(0xB3FFFFFF, 0xB31C1C1E, f));
+                rowValue.setColor(blend(0xB3FFFFFF, 0xB3FFFFFF, f));
                 float base = rowRect.centerY() + Ui.halfCap(rowLabel);
                 c.drawText(TextUtils.ellipsize(app[1], new TextPaint(rowLabel), 520 * k, TextUtils.TruncateAt.END).toString(), rowRect.left + 30 * k, base, rowLabel);
                 c.drawText(place >= 0 ? "#" + (place + 1) : Ui.tr("Fora", "Off"), rowRect.right - 30 * k, base, rowValue);
@@ -901,7 +896,7 @@ public class SettingsActivity extends Activity {
 
         /** A long list (the apps): nine rows at a time, the one in use checked. */
         private void drawPicker(Canvas c) {
-            Paint heading = Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF);
+            Paint heading = Ui.text(Ui.light, 38 * k, 0xFFFFFFFF);
             String title = pickFor == PICK_CITY ? Ui.tr("Cidade", "City") : keyLabels()[pickFor - 1];
             c.drawText(title, LIST_X * k + 30 * k, (LIST_TOP - 24) * k, heading);
             int rows = rowCount();
@@ -927,7 +922,7 @@ public class SettingsActivity extends Activity {
             boolean keys = screen == REMOTE_KEYS;
             String[] labels = keys ? keyLabels() : settingLabels();
             String[] values = keys ? keyValues() : settingValues();
-            Paint heading = Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF);
+            Paint heading = Ui.text(Ui.light, 38 * k, 0xFFFFFFFF);
             c.drawText(keys ? Ui.tr("Botões do Controle", "Remote Buttons") : Ui.tr("Ajustes do Início", "Home Settings"),
                     LIST_X * k + 30 * k, (LIST_TOP - 24) * k, heading);
             for (int i = 0; i < labels.length; i++) {
@@ -936,7 +931,7 @@ public class SettingsActivity extends Activity {
                 float f = drawRowBackground(c, i);
                 rowLabel.setColor(blend(0xF2FFFFFF, INK, f));
                 boolean locked = !keys && i >= COIN_ROWS && !Prefs.quotes();
-                rowValue.setColor(blend(locked ? 0x59FFFFFF : 0xB3FFFFFF, locked ? 0x591C1C1E : 0xB31C1C1E, f));
+                rowValue.setColor(blend(locked ? 0x59FFFFFF : 0xB3FFFFFF, locked ? 0x591C1C1E : 0xB3FFFFFF, f));
                 if (locked) rowLabel.setColor(blend(0x73FFFFFF, 0x731C1C1E, f));
                 float base = rowRect.centerY() + Ui.halfCap(rowLabel);
                 c.drawText(labels[i], rowRect.left + 30 * k, base, rowLabel);
