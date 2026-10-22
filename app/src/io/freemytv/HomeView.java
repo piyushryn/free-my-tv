@@ -94,7 +94,11 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private static final float L_TITLE_BASE = 130, L_TABBAR_TOP = 158, L_TABBAR_H = 68, L_CARDS_TOP = 262, L_CARD_H = 442;
     private static final float L_TALL_W = 320, L_CARD_GAP = 40, L_BUTTON = 68, L_BUTTON_GAP = 20, L_BUTTON_CY = 103;
     private static final float L_PLATTER_TOP = 814, L_TILE_H = 126;
-    private static final float L_DATE_BASE = 330, L_CLOCK_BASE = 540, L_WEATHER_BASE = 626, L_QUOTES_BASE = 694;
+    private static final float L_BRAND_BASE = 296, L_DATE_BASE = 356, L_CLOCK_BASE = 556, L_WEATHER_BASE = 646,
+            L_QUOTES_BASE = 716;
+    private static final int ACCENT = 0xFFF2D7A0;
+    // The clock and the joke of the minute sit in two glass boxes with the same top edge and the same minimum height.
+    private static final float L_BOX_TOP = 226, L_BOX_H = 520, L_BOX_W = 760, L_BOX_PAD = 44, L_BOX_R = 40, L_JOKE_CHIP = 46;
     private static final int L_INK = 0xFF1D1D1F, L_DIM = 0xFF6E6E73, L_FAINT = 0xFF8E8E93;
     private static final String[] TABS = {"Explorar", "Filmes", "Séries"};
     private static final String[] TABS_RU = {"Обзор", "Фильмы", "Сериалы"};
@@ -139,13 +143,23 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private int tab, topIndex, cardIndex;
     private int widgetIndex;    // with TalkBack on, the drawer's weather (0) or quotes (1) card can take the focus
     private List<Recs.Pick> cards = new ArrayList<>();
-    private final Spring[] topFocus = new Spring[6];
-    private final RectF[] topRects = new RectF[6];
+    private final Spring[] topFocus = new Spring[7];
+    private final RectF[] topRects = new RectF[7];
     private final Spring[] cardFocus = new Spring[3];
     private final RectF[] cardRects = new RectF[3];
     private final List<HomeApps.Item> lightButtons = new ArrayList<>();
-    private Paint lTitle, lTab, lTabOn, lCardTitle, lCardMeta, lQuote, lTip, lDate, lClock, lWeather, lClockQuote;
+    private Paint lTitle, lTab, lTabOn, lCardTitle, lCardMeta, lQuote, lTip, lDate, lBrand, lClock, lWeather, lClockQuote;
+    // The joke of the minute: a billboard panel on the right, its text laid out once per joke.
+    private Paint lJoke, lJokePunch, lJokeLabel, lJokeFoot, glassFill, glassEdge;
+    private final RectF clockBox = new RectF();
+    private StaticLayout jokeSetup, jokePunch;
+    private boolean jokeHasPunch;
+    private float jokeBoxH;
+    private String jokeLayoutText, jokeLabel = "", jokeFoot = "";
+    private final RectF jokeBox = new RectF();
     private Shader lightGradient;
+    private int backgroundColor, colorsVersion = -1;
+    private static final String BRAND = "Ryaan\u2019s Television";
 
     // Shelf
     private List<HomeApps.Item> shelf = new ArrayList<>();
@@ -266,9 +280,6 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private float tileShaderH, cardSheenH;
     private LinearGradient[] lightSheens = new LinearGradient[0], lightRims = new LinearGradient[0];
     private float[] lightShaderW = new float[0];
-    private android.graphics.ColorFilter veilFilter;
-    private float veilAmount = -1;
-    private int veilColor;
     private HomeData.Weather textWeather;
     private long textPricesAt = -1, textMinute = -1;
     private int textPrefs = -1;
@@ -374,7 +385,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         }
         setContentDescription("Free My TV");
         drawerLayer.setVisibility(INVISIBLE);
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 7; i++) {
             topFocus[i] = new Spring(0.26f, 0.85f, 0);
             topRects[i] = new RectF();
         }
@@ -468,6 +479,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     /** The three corner buttons, with their names in the current language. */
     private void makeLightButtons() {
         lightButtons.clear();
+        lightButtons.add(HomeApps.action(HomeApps.COLORS, "colors", Ui.tr("Cores", "Colors", "Colores"), "palette"));
         lightButtons.add(HomeApps.action(HomeApps.LIVE_TV, "live", Ui.tr("TV aberta", "Live TV"), "live_tv"));
         lightButtons.add(HomeApps.action(HomeApps.INPUTS, "inputs", Ui.tr("Entradas HDMI", "HDMI Inputs"), "hdmi"));
         lightButtons.add(HomeApps.action(HomeApps.SETTINGS, "settings", Ui.tr("Configurações", "Settings"), "settings"));
@@ -577,8 +589,22 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         lQuote = Ui.numbers(Ui.regular, 21 * k, L_FAINT);
         lTip = Ui.text(Ui.semibold, 25 * k, L_INK);
         lTip.setTextAlign(Paint.Align.CENTER);
-        lDate = Ui.text(Ui.semibold, 34 * k, L_DIM);
-        lClock = Ui.numbers(Ui.light, 200 * k, L_INK);
+        lDate = Ui.text(Ui.regular, 30 * k, L_DIM);
+        lBrand = Ui.text(Ui.brand, 26 * k, L_INK);
+        lBrand.setLetterSpacing(0.18f);
+        lJokeFoot = Ui.text(Ui.regular, 22 * k, L_DIM);
+        lJoke = Ui.text(Ui.light, 36 * k, L_INK);
+        lJokePunch = Ui.text(Ui.regular, 36 * k, L_INK);
+        lJokeLabel = Ui.text(Ui.medium, 20 * k, L_DIM);
+        lJokeLabel.setLetterSpacing(0.16f);
+        glassFill = new Paint(Paint.ANTI_ALIAS_FLAG);
+        glassFill.setColor(0x1AFFFFFF);
+        glassEdge = new Paint(Paint.ANTI_ALIAS_FLAG);
+        glassEdge.setStyle(Paint.Style.STROKE);
+        glassEdge.setStrokeWidth(2 * k);
+        glassEdge.setColor(0x33FFFFFF);
+        jokeLayoutText = null;
+        lClock = Ui.numbers(Ui.thin, 220 * k, L_INK);
         lClock.setLetterSpacing(-0.01f);
         lWeather = Ui.text(Ui.medium, 34 * k, L_DIM);
         lClockQuote = Ui.numbers(Ui.medium, 28 * k, L_DIM);
@@ -622,7 +648,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         border.setStyle(Paint.Style.STROKE);
         border.setStrokeWidth(2 * k);
         rim.setStyle(Paint.Style.STROKE);
-        rim.setStrokeWidth(2.5f * k);
+        rim.setStrokeWidth(2f * k);
     }
 
     // MARK: - Frames: 60 per second while something moves; nothing is redrawn when still
@@ -867,9 +893,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     /** Day or night right now (from the sun at your location); `animate`: with the transition. */
     private void checkNight(boolean animate) {
-        boolean want = data.isNight(System.currentTimeMillis());
+        boolean want = Prefs.isDark(Prefs.backgroundColor());   // light text on a dark background, dark text on a light one
         if (want == nightTarget) return;
         nightTarget = want;
+        jokeLayoutText = null;
         if (animate && running) {
             nightFrom = night;
             nightAt = SystemClock.uptimeMillis();
@@ -883,6 +910,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     /** Advances the day ⇄ night transition; true while it runs. */
     private boolean tickNight(long up) {
         if (nightAt == 0) return false;
+        jokeLayoutText = null;      // the joke's text colors follow the tone
         float t = Ui.clamp((up - nightAt) / NIGHT_MS), to = nightTarget ? 1 : 0;
         night = nightFrom + (to - nightFrom) * t * t * (3 - 2 * t);
         if (t >= 1) {
@@ -939,6 +967,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         lQuote.setColor(tone(L_FAINT, 0xB8FFFFFF));
         lTip.setColor(tone(L_INK, WHITE));
         lDate.setColor(tone(L_DIM, 0xFF98989D));
+        lBrand.setColor(tone(L_INK, WHITE));
+        lJoke.setColor(tone(L_INK, WHITE));
+        lJokeLabel.setColor(tone(L_DIM, 0xFF98989D));
+        lJokeFoot.setColor(tone(L_DIM, 0xFF98989D));
         lClock.setColor(tone(L_INK, WHITE));
         lWeather.setColor(tone(L_DIM, 0xFF98989D));
         lClockQuote.setColor(tone(L_DIM, 0xFF98989D));
@@ -998,27 +1030,6 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     private void drawSky(Canvas c) {
         drawLightSky(c);
-    }
-
-    /** Blends a color on top (the drawer's veil) as part of drawing the image, without another layer. */
-    private android.graphics.ColorFilter veil(float amount, int color) {
-        if (amount <= 0.002f) return null;
-        amount = Math.round(amount * 255) / 255f;
-        if (amount == veilAmount && color == veilColor) return veilFilter;
-        veilAmount = amount;
-        veilColor = color;
-        float keep = 1 - amount;
-        return veilFilter = new android.graphics.ColorMatrixColorFilter(new float[] {
-            keep, 0, 0, 0, ((color >> 16) & 255) * amount,
-            0, keep, 0, 0, ((color >> 8) & 255) * amount,
-            0, 0, keep, 0, (color & 255) * amount,
-            0, 0, 0, 1, 0});
-    }
-
-    private void drawImage(Canvas c, Bitmap image, float alpha) {
-        if (image == null || alpha <= 0.004f) return;
-        imagePaint.setAlpha(Math.round(255 * Math.min(1, alpha)));
-        c.drawBitmap(image, null, screen, imagePaint);
     }
 
     // MARK: - Hero
@@ -1141,13 +1152,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private void drawPlatter(Canvas c) {
         if (shelf.isEmpty()) return;
         float radius = (TILE_RADIUS + SHELF_PAD) * k;
-        tmp.set(platterRect);
-        tmp.offset(0, 18 * k);
-        shadow.setColor(tone(0x1F000000, 0x52000000));
-        shadows.draw(c, tmp, radius, SHADOW_BLUR * k, shadow);
-        // White glass by day; smoked glass at night.
-        scene.liquid(c, platterRect, radius, tone(0xFFFFFFFF, SMOKE), tone(0.42f, 0.12f), tone(0.03f, 0.08f),
-                tone(30, 34) * k, tone(22, 28) * k, tone(0.65f, 0.95f), 1);
+        // Flat: a faint lighter plate, no shadow and no glass.
+        fill.setShader(null);
+        fill.setColor(tone(0x0F000000, 0x0DFFFFFF));
+        c.drawRoundRect(platterRect, radius, radius, fill);
     }
 
     /** The quotes row's text and sizes, for one set of coins, prices and text size. */
@@ -1193,7 +1201,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         Paint text = clock ? lClockQuote : lQuote;
         // The corner buttons' names appear in this row: the quotes fade out while one of them has focus.
         float fade = 1;
-        for (int i = 3; i < 6 && !clock; i++) fade = Math.min(fade, 1 - Ui.clamp(topFocus[i].value));
+        for (int i = 3; i < 7 && !clock; i++) fade = Math.min(fade, 1 - Ui.clamp(topFocus[i].value));
         if (fade <= 0.01f) return;
         int textColor = text.getColor();
         text.setColor(Ui.alpha(textColor, fade));
@@ -1840,7 +1848,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             rim.setColor(Ui.alpha(0xFFFFFFFF, 0.4f * fc));
             rim.setStrokeWidth(1.5f * k);
             c.drawRoundRect(cell, r, r, rim);
-            rim.setStrokeWidth(2.5f * k);
+            rim.setStrokeWidth(2f * k);
         }
     }
 
@@ -2603,7 +2611,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             x = topRects[i].right + 4 * k;
         }
         float b = L_BUTTON * k, right = CONTENT_R * k, cy = L_BUTTON_CY * k;
-        for (int i = 2; i >= 0; i--) {
+        for (int i = lightButtons.size() - 1; i >= 0; i--) {
             topRects[3 + i].set(right - b, cy - b / 2, right, cy + b / 2);
             right -= b + L_BUTTON_GAP * k;
         }
@@ -2645,44 +2653,23 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
      * same photo almost black (or a dark gradient), drawn on top during the transition.
      */
     private void drawLightSky(Canvas c) {
-        long up = SystemClock.uptimeMillis();
-        float e = bgFadeAt == 0 ? 1 : fadeEase(bgFadeAt, up);
-        boolean fading = bgFadeAt != 0;
-        // Drawer open: the background lightens (by day) or darkens (at night), as a filter on the drawing itself.
-        android.graphics.ColorFilter v = veil(tone(0.32f, 0.42f) * Ui.clamp(drawer.value), blend(0xFFFFFFFF, 0xFF000000, night));
-        if (bgTo == null || (fading && bgFrom == null)) {
-            if (lightGradient == null) lightGradient = new LinearGradient(0, 0, 0, h, 0xFFF5F5F7, 0xFFE2E2E7, Shader.TileMode.CLAMP);
-            if (nightGradient == null) nightGradient = new LinearGradient(0, 0, 0, h, 0xFF1C1C1E, 0xFF0B0B0D, Shader.TileMode.CLAMP);
-            fill.setColorFilter(v);
-            fill.setColor(0xFF000000);
-            if (night < 0.999f) {
-                fill.setShader(lightGradient);
-                c.drawRect(screen, fill);
-            }
-            if (night > 0.001f) {
-                fill.setShader(nightGradient);
-                fill.setAlpha(Math.round(255 * night));
-                c.drawRect(screen, fill);
-                fill.setAlpha(255);
-            }
-            fill.setShader(null);
-            fill.setColorFilter(null);
+        if (colorsVersion != Prefs.version) {
+            colorsVersion = Prefs.version;
+            backgroundColor = Prefs.backgroundColor();
         }
-        imagePaint.setColorFilter(v);
-        if (fading && bgFrom != null) drawLightImage(c, bgFrom, bgTo == null ? 1 - e : 1);
-        if (bgTo != null) drawLightImage(c, bgTo, fading ? e : 1);
-        imagePaint.setColorFilter(null);
-    }
-
-    private void drawLightImage(Canvas c, Backdrop b, float alpha) {
-        if (night < 0.999f || b.nightImage == null) drawImage(c, b.lightImage, alpha);
-        if (night > 0.001f) drawImage(c, b.nightImage, alpha * night);
+        // A solid background. The photos stay on the screensaver.
+        fill.setShader(null);
+        fill.setColorFilter(null);
+        fill.setAlpha(255);
+        fill.setColor(backgroundColor);
+        c.drawRect(screen, fill);
     }
 
     private void drawLightTop(Canvas c) {
         applyTone();
         if (!picksOn()) {
             drawClock(c);
+            drawJoke(c);
             if (HomeData.coinCount() > 0) drawQuotes(c);
             return;
         }
@@ -2723,8 +2710,52 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         return Recs.hasKey(getContext());
     }
 
+    /** The joke of the minute, on the right: a glass box that grows with the joke, never below its minimum. */
+    private void drawJoke(Canvas c) {
+        String joke = data.joke;
+        if (joke.isEmpty()) return;
+        if (!joke.equals(jokeLayoutText)) layoutJoke(joke);
+        float pad = 0, r = 0;
+        float left = CONTENT_R * k - (L_BOX_W - 2 * L_BOX_PAD) * k, top = (L_BRAND_BASE - 20) * k;
+        jokeBox.set(left, top, CONTENT_R * k, top + jokeBoxH);
+        float labelH = lJokeLabel.descent() - lJokeLabel.ascent();
+        c.drawText(jokeLabel, left + pad, top + pad - lJokeLabel.ascent(), lJokeLabel);
+        // the setup in white, then the punchline in the accent color
+        float y = top + pad + labelH + 26 * k;
+        c.save();
+        c.translate(left + pad, y);
+        jokeSetup.draw(c);
+        c.restore();
+        if (jokeHasPunch) {
+            c.save();
+            c.translate(left + pad, y + jokeSetup.getHeight() + 22 * k);
+            jokePunch.draw(c);
+            c.restore();
+        }
+    }
+
+    /** Lays the joke out once per joke: the setup and punchline, and the box's height. */
+    private void layoutJoke(String joke) {
+        jokeLayoutText = joke;
+        int split = joke.indexOf('\n');
+        String setup = split < 0 ? joke : joke.substring(0, split);
+        String punch = split < 0 ? "" : joke.substring(split + 1);
+        jokeHasPunch = !punch.isEmpty();
+        jokeLabel = Ui.tr("Joke of the minute", "Joke of the minute", "Chiste del minuto").toUpperCase(Ui.locale());
+        jokeFoot = Ui.tr("A new joke every minute", "A new joke every minute", "Un chiste nuevo cada minuto");
+        lJokePunch.setColor(tone(0xFF8A5A00, ACCENT));
+        int w = Math.round((L_BOX_W - 2 * L_BOX_PAD) * k);  // text column width
+        jokeSetup = new StaticLayout(setup, new TextPaint(lJoke), w, Layout.Alignment.ALIGN_NORMAL, 1.2f, 0, false);
+        jokePunch = new StaticLayout(punch, new TextPaint(lJokePunch), w, Layout.Alignment.ALIGN_NORMAL, 1.2f, 0, false);
+        float labelH = lJokeLabel.descent() - lJokeLabel.ascent();
+        float footH = lJokeFoot.descent() - lJokeFoot.ascent();
+        jokeBoxH = labelH + 26 * k + jokeSetup.getHeight() + (jokeHasPunch ? 22 * k + jokePunch.getHeight() : 0);
+    }
+
     private void drawClock(Canvas c) {
-        float x = MARGIN * k;
+        float x = MARGIN * k, pad = L_BOX_PAD * k, r = L_BOX_R * k;
+        // no box: the clock sits straight on the background; the name, small and spaced, above the date
+        c.drawText(BRAND, x - Ui.leftBearing(lBrand, BRAND), L_BRAND_BASE * k, lBrand);
         c.drawText(dateText, x - Ui.leftBearing(lDate, dateText), L_DATE_BASE * k, lDate);
         c.drawText(clockText, x - Ui.leftBearing(lClock, clockText), L_CLOCK_BASE * k, lClock);
         HomeData.Weather wx = data.weather;
@@ -2763,8 +2794,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         c.translate(cx, cy);
         c.scale(s, s);
         tmp.set(-bw / 2, -bh / 2, bw / 2, bh / 2);
-        tmp.offset(0, (10 + 14 * f) * k);
-        shadowDeep.setColor(Ui.alpha(0xFF000000, tone(0.14f, 0.32f) + tone(0.2f, 0.28f) * f));
+        tmp.offset(0, (6 + 10 * f) * k);
+        shadowDeep.setColor(Ui.alpha(0xFF000000, 0.12f + 0.16f * f));
         shadows.draw(c, tmp, r0, DEEP_BLUR * k, shadowDeep);
         c.restore();
         Backdrop b = p == null ? null : recs.backdrop(p);
@@ -2792,15 +2823,11 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             c.translate(cx, cy);
             c.scale(s, s);
             tmp.set(-bw / 2, -bh / 2, bw / 2, bh / 2);
-            sheen.setShader(lightSheens[i]);
-            sheen.setAlpha(alpha);
-            c.drawRoundRect(tmp, r0, r0, sheen);
-            sheen.setAlpha(255);
             rim.setShader(lightRims[i]);
             rim.setAlpha(alpha);
-            rim.setStrokeWidth(2.5f * k / s);
+            rim.setStrokeWidth(2f * k / s);
             c.drawRoundRect(tmp, r0, r0, rim);
-            rim.setStrokeWidth(2.5f * k);
+            rim.setStrokeWidth(2f * k);
             rim.setAlpha(255);
             c.restore();
         }
@@ -2819,23 +2846,20 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
      */
     private void drawLightButtons(Canvas c) {
         applyTone();
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < lightButtons.size(); i++) {
             RectF r = topRects[3 + i];
             float f = Ui.clamp(topFocus[3 + i].value), s = 1 + 0.1f * f, rad = r.width() / 2 * s;
             cell.set(r.centerX() - rad, r.centerY() - rad, r.centerX() + rad, r.centerY() + rad);
-            tmp.set(cell);
-            tmp.offset(0, (6 + 8 * f) * k);
-            shadow.setColor(Ui.alpha(0xFF000000, tone(0.1f, 0.3f) + tone(0.14f, 0.2f) * f));
-            shadows.draw(c, tmp, rad, SHADOW_BLUR * k, shadow);
-            scene.liquid(c, cell, rad, tone(0xFFFFFFFF, SMOKE), tone(0.55f, 0.5f), tone(0.02f, 0.01f), 12 * k, 8 * k,
-                    tone(0.6f, 0.45f), 1 - f);
+            fill.setShader(null);
+            fill.setColor(tone(0x14000000, 0x14FFFFFF));
+            c.drawCircle(cell.centerX(), cell.centerY(), rad, fill);
             if (f > 0.01f) {
                 fill.setShader(null);
-                fill.setColor(Ui.alpha(0xFFFFFFFF, f));
+                fill.setColor(Ui.alpha(tone(L_INK, 0xFFFFFFFF), f));
                 c.drawCircle(cell.centerX(), cell.centerY(), rad, fill);
             }
-            Symbols.draw(getContext(), c, lightButtons.get(i).symbol, cell.centerX(), cell.centerY(), 27 * k * s,
-                    blend(tone(L_INK, 0xEBFFFFFF), L_INK, f));
+            Symbols.draw(getContext(), c, lightButtons.get(i).symbol, cell.centerX(), cell.centerY(), 25 * k * s,
+                    blend(tone(L_INK, 0xEBFFFFFF), tone(0xFFFFFFFF, L_INK), f));
             if (f > 0.01f) {
                 String label = lightButtons.get(i).label;
                 float half = lTip.measureText(label) / 2;
@@ -2874,7 +2898,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                 break;
             case Z_TOP:
                 if (dx != 0) {
-                    int next = Math.max(picksOn() ? 0 : 3, Math.min(5, topIndex + dx));
+                    int next = Math.max(picksOn() ? 0 : 3, Math.min(2 + lightButtons.size(), topIndex + dx));
                     if (next == topIndex) return true;
                     topIndex = next;
                     if (topIndex < 3) selectTab(topIndex);   // like Apple TV tabs: focusing a tab selects it

@@ -54,6 +54,7 @@ final class HomeData {
         return "https://api.open-meteo.com/v1/forecast?latitude=" + Prefs.latitude() + "&longitude=" + Prefs.longitude() + WEATHER_QUERY;
     }
     private static final long PRICES_EVERY = 5 * 60_000L, WEATHER_EVERY = 30 * 60_000L;
+    private static final String JOKE_URL = "https://v2.jokeapi.dev/joke/Programming?type=twopart&safe-mode";
     interface Listener { void onData(); }
 
     /** BTC, ETH and SOL; in Brazilian reais also the dollar (USDT/BRL), which Binance doesn't list for most currencies. */
@@ -135,15 +136,17 @@ final class HomeData {
     final double[] prices = {Double.NaN, Double.NaN, Double.NaN, Double.NaN};
     /** 24 h change (%), in the same order. */
     final double[] changes = {Double.NaN, Double.NaN, Double.NaN, Double.NaN};
-    volatile long pricesAt, weatherAt;
+    volatile long pricesAt, weatherAt, jokeAt;
+    /** The joke of the minute: setup and punchline on two lines (empty until it's fetched). */
+    volatile String joke = "";
     volatile Weather weather = new Weather();
 
     private final SharedPreferences cache;
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private final List<Listener> listeners = new ArrayList<>();
-    private volatile boolean fetchingPrices, fetchingWeather;
-    private volatile long pricesFailedAt, weatherFailedAt;
+    private volatile boolean fetchingPrices, fetchingWeather, fetchingJoke;
+    private volatile long pricesFailedAt, weatherFailedAt, jokeFailedAt;
 
     private HomeData(Context c) {
         cache = c.getSharedPreferences("homedata", Context.MODE_PRIVATE);
@@ -210,6 +213,27 @@ final class HomeData {
                     AppLog.w("weather: " + e.getMessage());
                 } finally {
                     fetchingWeather = false;
+                }
+            });
+        }
+        // One joke per minute, changing with the clock's minute.
+        if (!fetchingJoke && (now / 60_000L != jokeAt / 60_000L || now < jokeAt) && !failedRecently(jokeFailedAt, now)) {
+            fetchingJoke = true;
+            io.execute(() -> {
+                try {
+                    String body = get(JOKE_URL);
+                    JSONObject j = new JSONObject(body);
+                    // safe-mode keeps the API to clean jokes; anything else is skipped, not shown
+                    if (!j.optBoolean("error", true) && j.optBoolean("safe", false)) {
+                        joke = j.getString("setup") + "\n" + j.getString("delivery");
+                        jokeAt = System.currentTimeMillis();
+                        notifyListeners();
+                    }
+                } catch (Exception e) {
+                    jokeFailedAt = System.currentTimeMillis();
+                    AppLog.w("joke: " + e.getMessage());
+                } finally {
+                    fetchingJoke = false;
                 }
             });
         }
